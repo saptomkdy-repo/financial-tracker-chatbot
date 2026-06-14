@@ -18,21 +18,21 @@ from google.oauth2.service_account import Credentials
 from telegram import Update
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, MessageHandler,
-    filters, ContextTypes, JobQueue
+    filters, ContextTypes
 )
 
 from pytz import timezone
 
 load_dotenv()
 
-# ── Logging ──────────────────────────────────────────────────────────────────
+# Logging
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
-# ── Konfigurasi ───────────────────────────────────────────────────────────────
+# Konfigurasi
 TELEGRAM_TOKEN   = os.getenv("TELEGRAM_TOKEN")
 GEMINI_API_KEY   = os.getenv("GEMINI_API_KEY")
 SPREADSHEET_ID   = os.getenv("SPREADSHEET_ID")
@@ -42,7 +42,7 @@ SHEET_BUDGET     = os.getenv("SHEET_BUDGET", "Budget")
 SHEET_KATEGORI   = os.getenv("SHEET_KATEGORI", "Kategori")
 BUDGET_WARNING   = 0.80
 ALLOWED_USER_IDS = os.getenv("ALLOWED_USER_IDS", "")
-# Chat ID untuk reminder — isi dengan Telegram user ID Anda
+# Chat ID Telegram untuk reminder
 REMINDER_CHAT_ID = os.getenv("REMINDER_CHAT_ID", "")
 WIB = timezone("Asia/Jakarta")
 
@@ -50,11 +50,11 @@ allowed_ids = set(
     int(x.strip()) for x in ALLOWED_USER_IDS.split(",") if x.strip()
 )
 
-# ── Gemini setup ──────────────────────────────────────────────────────────────
+# Gemini setup
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel("gemini-3.1-flash-lite")
 
-# ── Google Sheets setup ───────────────────────────────────────────────────────
+# Google Sheets setup
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive",
@@ -62,7 +62,7 @@ SCOPES = [
 creds = Credentials.from_service_account_file("credentials.json", scopes=SCOPES)
 gc    = gspread.authorize(creds)
 
-# ── Prompt: transaksi biasa ───────────────────────────────────────────────────
+# Prompt: transaksi biasa (sheet Transaksi)
 def get_parse_prompt(text: str) -> str:
     kategori = ", ".join(get_kategori_list())
     return f"""
@@ -96,7 +96,7 @@ Aturan:
 - lunas: true HANYA jika ada kata lunas/lunasin/lunasi
 """
 
-# ── Prompt: utang piutang ────────────────────────────────────────────────────
+# Prompt: utang piutang (untuk sheet Utang-Piutang)
 DEBT_PARSE_PROMPT = """
 Anggap kamu adalah asisten pencatat utang piutang pribadi saya. Ekstrak informasi dari teks berikut dan kembalikan HANYA JSON array (tanpa markdown, tanpa penjelasan). Selalu array meski hanya 1 item.
 
@@ -136,7 +136,7 @@ Aturan:
 - Kata kunci bayar: bayar, cicil, nyicil, lunasin, lunasi, transfer balik, balikin
 """
 
-# ── Helper: clean JSON response ───────────────────────────────────────────────
+# Helper: clean JSON response dari Gemini (buang ```json jika ada)
 def clean_json(raw: str):
     raw = raw.strip()
     if raw.startswith("```"):
@@ -146,7 +146,7 @@ def clean_json(raw: str):
             raw = raw[4:]
     return raw.strip()
 
-# ── Helper: parse transaksi biasa ─────────────────────────────────────────────
+# Helper: parse transaksi biasa
 def parse_transaction(text: str):
     try:
         response = model.generate_content(get_parse_prompt(text))
@@ -160,7 +160,7 @@ def parse_transaction(text: str):
         logger.error(f"Gemini parse error: {e}")
         return None
 
-# ── Helper: parse utang piutang ──────────────────────────────────────────────
+# Helper: parse utang piutang
 def parse_debt(text: str):
     try:
         prompt = DEBT_PARSE_PROMPT.format(
@@ -179,7 +179,7 @@ def parse_debt(text: str):
         logger.error(f"Gemini debt parse error: {e}")
         return None
 
-# ── Helper: simpan transaksi ke sheet ────────────────────────────────────────
+# Helper: simpan transaksi ke sheet Transaksi
 def save_to_sheet(user: str, data: dict) -> bool:
     try:
         sheet = gc.open_by_key(SPREADSHEET_ID).worksheet(SHEET_NAME)
@@ -202,11 +202,11 @@ def save_to_sheet(user: str, data: dict) -> bool:
         logger.error(f"Sheets error: {e}")
         return False
 
-# ── Helper: ambil sheet utang piutang ───────────────────────────────────────
+# Helper: ambil sheet utang piutang
 def get_debt_sheet():
     return gc.open_by_key(SPREADSHEET_ID).worksheet(SHEET_DEBT)
 
-# ── Helper: simpan utang/piutang baru ───────────────────────────────────────
+# Helper: simpan utang/piutang baru
 def save_debt(user: str, data: dict) -> str:
     """Simpan utang/piutang baru, return ID unik."""
     try:
@@ -233,7 +233,7 @@ def save_debt(user: str, data: dict) -> str:
         logger.error(f"Save debt error: {e}")
         return ""
 
-# ── Helper: proses pembayaran utang/piutang ──────────────────────────────────
+# Helper: proses pembayaran utang/piutang
 def process_payment(data: dict) -> dict | None:
     try:
         sheet  = get_debt_sheet()
@@ -319,7 +319,7 @@ def process_payment(data: dict) -> dict | None:
         logger.error(f"Process payment error: {e}")
         return None
 
-# ── Helper: setup headers ─────────────────────────────────────────────────────
+# Helper: setup headers
 def ensure_headers():
     try:
         wb = gc.open_by_key(SPREADSHEET_ID)
@@ -371,15 +371,15 @@ def ensure_headers():
     except Exception as e:
         logger.warning(f"Header setup error: {e}")
 
-# ── Helper: ambil sheet budget ────────────────────────────────────────────────
+# Helper: ambil sheet budget
 def get_budget_sheet():
     return gc.open_by_key(SPREADSHEET_ID).worksheet(SHEET_BUDGET)
 
-# ── Helper: ambil sheet kategori ─────────────────────────────────────────────
+# Helper: ambil sheet kategori
 def get_kategori_sheet():
     return gc.open_by_key(SPREADSHEET_ID).worksheet(SHEET_KATEGORI)
 
-# ── Helper: ambil daftar kategori ────────────────────────────────────────────
+# Helper: ambil daftar kategori
 def get_kategori_list() -> list:
     """Return list kategori dari sheet Kategori."""
     try:
@@ -394,7 +394,7 @@ def get_kategori_list() -> list:
             "Investasi", "Lainnya"
         ]
 
-# ── Helper: ambil budget per kategori ────────────────────────────────────────
+# Helper: ambil budget per kategori
 def get_budgets() -> dict:
     """Return {kategori: budget} dari sheet Budget."""
     try:
@@ -404,7 +404,7 @@ def get_budgets() -> dict:
         logger.error(f"Get budget error: {e}")
         return {}
 
-# ── Helper: hitung pengeluaran bulan ini per kategori ────────────────────────
+# Helper: hitung pengeluaran bulan ini per kategori
 def get_spending_this_month() -> dict:
     """Return {kategori: total_pengeluaran} bulan berjalan."""
     try:
@@ -425,7 +425,7 @@ def get_spending_this_month() -> dict:
         logger.error(f"Get spending error: {e}")
         return {}
 
-# ── Helper: cek warning budget untuk satu kategori ───────────────────────────
+# Helper: cek warning budget untuk satu kategori
 def check_budget_warning(kategori: str) -> str | None:
     """
     Return pesan warning jika pengeluaran kategori >= 80% budget.
@@ -455,7 +455,7 @@ def check_budget_warning(kategori: str) -> str | None:
         )
     return None
 
-# ── Debt reminder job ──────────────────────────────────────────────────────────────
+# Pengingat utang-piutang (H-1, H0, H+1, H+3, H+7)
 async def debt_reminders(context: ContextTypes.DEFAULT_TYPE):
     if not REMINDER_CHAT_ID:
         return
@@ -516,7 +516,7 @@ async def debt_reminders(context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f"Debt reminder error: {e}")
 
-# ── Weekly report job ─────────────────────────────────────────────────────────
+# Laporan mingguan setiap Senin pagi
 async def send_weekly_report(context: ContextTypes.DEFAULT_TYPE):
     if not REMINDER_CHAT_ID:
         return
@@ -595,11 +595,11 @@ async def send_weekly_report(context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f"Weekly report error: {e}")
 
-# ── Command: /laporan ───────────────────────────────────────────────────────
+# Command: /laporan
 async def cmd_laporan(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await send_weekly_report(context)
 
-# ── Command: /start ───────────────────────────────────────────────────────────
+# Command: /start
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = (
         "👋 *Hayyy! Gue bot pencatat keuangan lo, soalnya lo kan pelupa AWKAWOAWKOAK*\n\n"
@@ -629,7 +629,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(msg, parse_mode="Markdown")
 
-# ── Command: /bantuan ─────────────────────────────────────────────────────────
+# Command: /bantuan
 async def cmd_bantuan(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = (
         "📖 *Panduan Lengkap*\n\n"
@@ -655,7 +655,7 @@ async def cmd_bantuan(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(msg, parse_mode="Markdown")
 
-# ── Command: /ringkasan ───────────────────────────────────────────────────────
+# Command: /ringkasan
 async def cmd_ringkasan(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         sheet = gc.open_by_key(SPREADSHEET_ID).worksheet(SHEET_NAME)
@@ -686,15 +686,15 @@ async def cmd_ringkasan(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Ringkasan error: {e}")
         await update.message.reply_text("❌ Gagal ngambil ringkasan. Coba lo liat log-nya!")
 
-# ── Command: /utang ──────────────────────────────────────────────────────────
+# Command: /utang
 async def cmd_utang(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await _show_debt_list(update, "utang")
 
-# ── Command: /piutang ─────────────────────────────────────────────────────────
+# Command: /piutang
 async def cmd_piutang(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await _show_debt_list(update, "piutang")
 
-# ── Command: /utangfinal ─────────────────────────
+# Command: /utangfinal
 async def cmd_utangfinal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         sheet = get_debt_sheet()
@@ -749,7 +749,7 @@ async def cmd_utangfinal(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Rekap error: {e}")
         await update.message.reply_text("❌ Gagal ngambil rekap. Coba lo liat log-nya!")
 
-# ── Command: /setbudget ───────────────────────────────────────────────────────
+# Command: /setbudget
 async def cmd_setbudget(update: Update, context: ContextTypes.DEFAULT_TYPE):
     kategori_list = [
         "Makanan & Minuman", "Transportasi", "Belanja",
@@ -804,7 +804,7 @@ async def cmd_setbudget(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(msg, parse_mode="Markdown")
 
-# ── Command: /cekbudget ───────────────────────────────────────────────────────
+# Command: /cekbudget
 async def cmd_cekbudget(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         budgets  = get_budgets()
@@ -850,7 +850,7 @@ async def cmd_cekbudget(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Cek budget error: {e}")
         await update.message.reply_text("❌ Gagal ngambil data budget. Coba lo liat log-nya!")
 
-# ── Command: /kategori ────────────────────────────────────────────────────────
+# Command: /kategori
 async def cmd_kategori(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         kategori = get_kategori_list()
@@ -867,7 +867,7 @@ async def cmd_kategori(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Kategori error: {e}")
         await update.message.reply_text("❌ Gagal ngambil daftar kategori. Coba lo liat log-nya!")
 
-# ── Command: /tambahkategori ──────────────────────────────────────────────────
+# Command: /tambahkategori
 async def cmd_tambahkategori(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
         await update.message.reply_text(
@@ -888,7 +888,7 @@ async def cmd_tambahkategori(update: Update, context: ContextTypes.DEFAULT_TYPE)
         logger.error(f"Tambah kategori error: {e}")
         await update.message.reply_text("❌ Gagal nambahin kategori. Coba lo liat log-nya!")
 
-# ── Command: /hapuskategori ───────────────────────────────────────────────────
+# Command: /hapuskategori ───────────────────────────────────────────────────
 async def cmd_hapuskategori(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
         await update.message.reply_text(
@@ -943,7 +943,7 @@ async def _show_debt_list(update: Update, tipe: str):
         logger.error(f"Show debt error: {e}")
         await update.message.reply_text(f"❌ Gagal ngambil data {tipe}. Coba lo liat log-nya!")
 
-# ── Handler: pesan biasa ──────────────────────────────────────────────────────
+# Handler: pesan biasa
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id  = update.effective_user.id
     username = update.effective_user.full_name or str(user_id)
@@ -955,7 +955,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text("⏳ Gue proses dulu...")
 
-    # ── Coba parse sebagai utang/piutang dulu ────────────────────────────────
+    # Coba parse sebagai utang/piutang dulu
     debt_list = parse_debt(text)
 
     if debt_list:
@@ -1006,7 +1006,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     )
         return
 
-    # ── Parse sebagai transaksi biasa ─────────────────────────────────────────
+    # Parse sebagai transaksi biasa
     transactions = parse_transaction(text)
 
     if not transactions:
@@ -1047,7 +1047,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("❌ Gagal nyimpen transaksi. Coba lo liat log-nya!")
 
-# ── Main ──────────────────────────────────────────────────────────────────────
+# Main
 def main():
     ensure_headers()
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
