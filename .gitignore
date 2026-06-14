@@ -1,0 +1,16 @@
+# Secrets (API Key)
+.env
+*.env
+
+# Google Auth credentials
+credentials.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
