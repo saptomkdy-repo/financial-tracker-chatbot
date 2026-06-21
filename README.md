@@ -30,7 +30,7 @@ Bot Telegram untuk mencatat keuangan pribadi secara otomatis ke Google Sheets me
 4. Salin API key yang muncul
 5. Simpan untuk `.env`
 
-> **Free tier Gemini 1.5 Flash**: 15 request/menit, 1.500 request/hari — lebih dari cukup untuk penggunaan pribadi.
+> **Free tier Gemini 3.1 Flash-Lite**: 15 request/menit, 250.000 token/menit, 500 request/hari, lebih dari cukup untuk penggunaan pribadi.
 
 ---
 
@@ -88,7 +88,7 @@ TELEGRAM_TOKEN=token_dari_botfather
 GEMINI_API_KEY=api_key_dari_aistudio
 SPREADSHEET_ID=id_dari_url_spreadsheet
 SHEET_NAME=Transaksi
-ALLOWED_USER_IDS=          # kosongkan dulu
+ALLOWED_USER_IDS=          # ID Telegram
 ```
 
 ---
@@ -133,7 +133,7 @@ INFO - Bot berjalan...
 ## Deploy (Opsional) — Agar Bot Berjalan 24/7
 
 ### Opsi A: PC sendiri (paling mudah)
-Jalankan `python bot.py` dan biarkan terminal terbuka. Atau gunakan `screen`/`tmux` di Linux.
+Jalankan `python bot.py` dan biarkan terminal terbuka.
 
 ### Opsi B: Wispbyte (bisa free-tier)
 1. Buka [wispbyte.com](https://wispbyte.com/).
