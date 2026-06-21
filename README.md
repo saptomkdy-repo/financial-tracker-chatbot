@@ -135,15 +135,12 @@ INFO - Bot berjalan...
 ### Opsi A: PC sendiri (paling mudah)
 Jalankan `python bot.py` dan biarkan terminal terbuka. Atau gunakan `screen`/`tmux` di Linux.
 
-### Opsi B: Railway (gratis, cloud)
-1. Push kode ke GitHub
-2. Buka https://railway.app → login dengan GitHub
-3. New Project → Deploy from GitHub repo
-4. Tambahkan environment variables di Railway dashboard
-5. Upload `credentials.json` sebagai file atau encode ke base64
-
-### Opsi C: VPS murah
-Jalankan di VPS (IDCloudHost, Niagahoster, dll) dengan `nohup python bot.py &`
+### Opsi B: Wispbyte (bisa free-tier)
+1. Buka [wispbyte.com](https://wispbyte.com/).
+2. Daftar dan login.
+3. Klik "_Create a new server_".
+4. Upload seluruh file project-nya ke Wispbyte di bagian _Files_.
+5. Sesuaikan _Startup Command_ agar file Python dan dependensinya dapat jalan secara otomatis ketika server dinyalakan.
 
 ---
 
